@@ -1,6 +1,8 @@
 ARG PYTHON_BASE_IMAGE=python:3.13-slim-bookworm
 FROM ${PYTHON_BASE_IMAGE}
 
+ARG RUNTIME_UID=1000
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -13,7 +15,11 @@ RUN python -m pip install --upgrade pip \
     && python -m pip install --requirement requirements.txt
 
 COPY . .
-COPY --chmod=1777 docker/jieba-cache /app/.jieba_cache
+COPY docker/jieba-cache /app/.jieba_cache
+
+USER root
+RUN chmod 1777 /app/.jieba_cache
+USER ${RUNTIME_UID}
 
 ENTRYPOINT ["python"]
 CMD ["run_evaluation.py", "--help"]
