@@ -224,7 +224,7 @@ API 密钥通过 `LLM_API_KEY` 或 `OPENAI_API_KEY` 环境变量提供，不写�
 python run_post_correction.py \
   --input examples/correction_input.jsonl \
   --output runs/example/corrected.jsonl \
-  --prompt post_correction/prompts/v3_2.json \
+  --prompt post_correction/prompts/v1_1.json \
   --mode single \
   --workers 4
 ```

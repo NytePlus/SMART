@@ -78,4 +78,4 @@ services:
       - --output
       - runs/corrected.jsonl
       - --prompt
-      - post_correction/prompts/v3_2.json
+      - post_correction/prompts/v1_1.json
