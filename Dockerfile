@@ -1,8 +1,6 @@
 ARG PYTHON_BASE_IMAGE=python:3.13-slim-bookworm
 FROM ${PYTHON_BASE_IMAGE}
 
-ARG RUNTIME_UID=1000
-
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -17,6 +15,7 @@ RUN python -m pip install --upgrade pip \
 COPY . .
 COPY docker/jieba-cache /app/.jieba_cache
 
+ARG RUNTIME_UID=1000
 USER root
 RUN chmod 1777 /app/.jieba_cache
 USER ${RUNTIME_UID}
