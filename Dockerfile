@@ -13,6 +13,7 @@ RUN python -m pip install --upgrade pip \
     && python -m pip install --requirement requirements.txt
 
 COPY . .
+COPY --chmod=1777 docker/jieba-cache/ /app/.jieba_cache/
 
 ENTRYPOINT ["python"]
 CMD ["run_evaluation.py", "--help"]
