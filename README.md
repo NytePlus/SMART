@@ -36,14 +36,12 @@ flowchart LR
         P --> C2[corrected hypothesis]
     end
 
-    classDef artifact fill:transparent,stroke:transparent,stroke-width:0px
-    class E2,C2 artifact
+    classDef plainText fill:transparent,stroke:transparent,stroke-width:0px
+    class E1,C1,E2,C2 plainText
 
     style Evaluation fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
     style Correction fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
 ```
-
-重要约束：Post Correction 不接收当前句的 `reference`。`reference` 只允许进入离线评估流水线。
 
 ## 统一数据约定
 
