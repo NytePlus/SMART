@@ -36,7 +36,11 @@ flowchart LR
         P --> C2[corrected hypothesis]
     end
 
-    C2 -. 可作为新的 hypothesis 重新评估 .-> E1
+    classDef artifact fill:transparent,stroke:transparent,stroke-width:0px
+    class E2,C2 artifact
+
+    style Evaluation fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
+    style Correction fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
 ```
 
 重要约束：Post Correction 不接收当前句的 `reference`。`reference` 只允许进入离线评估流水线。
