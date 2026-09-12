@@ -1,0 +1,217 @@
+{
+  "rubric_version": "minimal-v1.0.0",
+  "prompt_version": "minimal-zh-prompt-v1.0.0",
+  "prompt_language": "zh",
+  "title": "ASR 语义后果最小 Rubric",
+  "system_prompt": "你是一名 ASR 语义后果评估员。你的任务不是直接给出最终标签，而是严格回答配置中规定的四个问题。正式的 CONSEQUENTIAL、INCONSEQUENTIAL 或 UNSCORABLE 标签将由程序根据答案确定性聚合。\n\n必须遵守以下要求：\n1. 只评估当前 reference_span 与 hypothesis_span 所表示的这一个 ASR 错误，不要把句中其他未聚焦错误归到当前 segment。\n2. 每个问题独立作答，不得先猜最终标签再反向编造理由。\n3. evidence.quote 必须从指定输入字段逐字复制，不得改写、补全、翻译或规范化。\n4. 判断上下文可恢复性时，只能站在看到 hypothesis_text、hypothesis_span、history 和 suffix 的普通读者视角；不得因为你同时看到了 reference 就假设读者能够脑补 reference。\n5. 信息不足、reference 有问题或存在多种实质不同解释时，使用不可评分或不确定选项。\n6. 不要输出 final_label，不要在 JSON 之外输出任何文字。",
+  "principles": [
+    "评价目标是当前对齐错误是否让合理读者形成与说话者原意不同的实质性理解，而不是判断是否存在字面差异。",
+    "Q1 只判断内容有没有改变；Q2 判断读者能否从 hypothesis 和可见上下文恢复；Q3 判断最终理解偏差是否达到实质程度。",
+    "仅能识别大致主题，但关键事实、实体、术语、数值、条件、角色或立场仍不确定，不属于完全可恢复。",
+    "专有名词或术语的拼写不同并不自动构成实质影响；如果普通读者仍能唯一确定同一对象，可以判为仅形式变化或完全可恢复。",
+    "若内容变化且不能完全恢复，但变化只影响无关紧要的局部措辞，可以判为轻微影响；关键事实、身份、术语、数值、逻辑或关系无法确定时应判为实质影响。",
+    "变化类型只是分析标签，不参与最终标签聚合。",
+    "证据必须保留原始空格和标点；长文本难以逐字复制时，应引用更短但足够支持判断的原文片段。"
+  ],
+  "required_question_ids": ["Q0", "Q1", "Q2", "Q3"],
+  "analysis_tags": [
+    "命题或事件",
+    "实体或专名",
+    "专业术语",
+    "数值或时间",
+    "否定或模态",
+    "条件或范围",
+    "语义角色或指代",
+    "因果或时序",
+    "信息增删",
+    "其他"
+  ],
+  "questions": [
+    {
+      "id": "Q0",
+      "key": "可评分性",
+      "dimension": "门控",
+      "question": "当前对齐、reference、hypothesis 和可见上下文是否足以可靠评价这个错误？",
+      "allowed_answers": ["可评分", "不可评分"],
+      "definitions": {
+        "可评分": "当前两个 span 是同一局部 ASR 编辑位置，reference 意图基本明确，现有信息足以评价。两个 span 语义差异很大并不等于对齐无效。",
+        "不可评分": "对齐位置错误、reference 本身明显有误、必要上下文缺失，或存在多种无法仲裁的实质不同解释。"
+      },
+      "reason_codes": ["局部对齐有效", "边界部分重叠但可比较", "对齐位置错误", "参考文本有问题", "必要上下文缺失", "存在多种合理解释"],
+      "reason_codes_by_answer": {
+        "可评分": ["局部对齐有效", "边界部分重叠但可比较"],
+        "不可评分": ["对齐位置错误", "参考文本有问题", "必要上下文缺失", "存在多种合理解释"]
+      },
+      "evidence_required_for": ["不可评分"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text", "history", "suffix"],
+      "boundary_examples": [
+        "循环→寻属于语义差异明显但位置有效的替换，应判为可评分，而不是对齐无效。",
+        "两个 span 来自句中不同位置，导致高亮错误并非真实 ASR 编辑时，判为不可评分。"
+      ]
+    },
+    {
+      "id": "Q1",
+      "key": "内容变化",
+      "dimension": "语义差异",
+      "question": "只考虑当前错误，hypothesis 是否改变了 reference 表达的内容？",
+      "allowed_answers": ["无内容变化", "仅形式变化", "内容变化", "不确定"],
+      "definitions": {
+        "无内容变化": "当前差异没有改变可理解的内容，例如无意义停顿、重复或不承载内容的口语成分。",
+        "仅形式变化": "存在字面、拼写、空格、词形或表达形式差异，但指向同一内容。",
+        "内容变化": "至少一个事实、动作、状态、实体、术语、数值、逻辑条件、角色、关系或有效信息被新增、删除或替换。",
+        "不确定": "现有证据无法可靠判断内容是否改变。"
+      },
+      "reason_codes": ["内容保持一致", "口语或填充成分", "重复或自我修正", "拼写或空格差异", "同一对象的可识别变体", "事实或事件改变", "实体或术语改变", "数值或时间改变", "逻辑条件改变", "角色或关系改变", "有效信息增删", "内容变化无法确定"],
+      "reason_codes_by_answer": {
+        "无内容变化": ["内容保持一致", "口语或填充成分", "重复或自我修正"],
+        "仅形式变化": ["拼写或空格差异", "同一对象的可识别变体"],
+        "内容变化": ["事实或事件改变", "实体或术语改变", "数值或时间改变", "逻辑条件改变", "角色或关系改变", "有效信息增删"],
+        "不确定": ["内容变化无法确定"]
+      },
+      "evidence_required_for": ["内容变化"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text"],
+      "boundary_examples": [
+        "BEST SELLER→BESTSELLER 只改变空格，属于仅形式变化。",
+        "HIM→THEM 若改变了被告知的对象，属于内容变化。"
+      ]
+    },
+    {
+      "id": "Q2",
+      "key": "上下文可恢复性",
+      "dimension": "读者恢复",
+      "question": "一个只看到 ASR hypothesis 和可见上下文的普通读者，能否唯一且可靠地恢复说话者原意？",
+      "allowed_answers": ["完全可恢复", "部分可恢复", "不可恢复", "不确定"],
+      "definitions": {
+        "完全可恢复": "hypothesis 和上下文只支持一个合理解释，而且该解释与 reference 原意一致；读者不需要看到 reference。",
+        "部分可恢复": "读者可以恢复大致主题或部分内容，但关键事实、实体、术语、数值、条件、角色或立场仍不确定。",
+        "不可恢复": "hypothesis 支持错误理解，或支持多个实质不同解释，读者无法可靠恢复原意。",
+        "不确定": "可见上下文不足，无法可靠评估恢复程度。"
+      },
+      "reason_codes": ["上下文唯一确定原意", "表面差异不妨碍识别", "只能恢复大致内容", "关键细节仍不确定", "错误解释更自然", "存在多个实质解释", "上下文证据不足"],
+      "reason_codes_by_answer": {
+        "完全可恢复": ["上下文唯一确定原意", "表面差异不妨碍识别"],
+        "部分可恢复": ["只能恢复大致内容", "关键细节仍不确定"],
+        "不可恢复": ["错误解释更自然", "存在多个实质解释"],
+        "不确定": ["上下文证据不足"]
+      },
+      "evidence_required_for": ["完全可恢复", "部分可恢复", "不可恢复"],
+      "allowed_evidence_sources": ["hypothesis_span", "hypothesis_text", "history", "suffix"],
+      "boundary_examples": [
+        "名字存在轻微拼写差异，但上下文只可能指向同一人时，属于完全可恢复。",
+        "读者知道讨论的是某门课程，但无法确定具体课程名时，只属于部分可恢复。"
+      ]
+    },
+    {
+      "id": "Q3",
+      "key": "读者理解影响",
+      "dimension": "语义后果",
+      "question": "相比说话者原意，这个错误会让合理读者产生多大程度的理解偏差？",
+      "allowed_answers": ["无影响", "轻微影响", "实质影响", "不确定"],
+      "definitions": {
+        "无影响": "读者最终理解与原意相同，差异只是形式或完全可恢复的表面变化。",
+        "轻微影响": "局部表达略有偏差，但核心事实、实体身份、关键术语、数值、逻辑条件、角色关系和立场保持不变。不能仅因为大致主题仍可识别就判为轻微。",
+        "实质影响": "至少一个事实、实体身份、关键术语、数值、逻辑条件、角色关系、立场或结论可能被错误理解或无法确定。",
+        "不确定": "现有信息无法可靠判断理解偏差是否达到实质程度。"
+      },
+      "reason_codes": ["最终理解一致", "纯形式差异", "非关键信息轻微偏差", "核心事实可能误解", "实体或术语可能误解", "数值或时间可能误解", "逻辑条件可能误解", "角色或关系可能误解", "主要结论发生变化", "影响程度无法确定"],
+      "reason_codes_by_answer": {
+        "无影响": ["最终理解一致", "纯形式差异"],
+        "轻微影响": ["非关键信息轻微偏差"],
+        "实质影响": ["核心事实可能误解", "实体或术语可能误解", "数值或时间可能误解", "逻辑条件可能误解", "角色或关系可能误解", "主要结论发生变化"],
+        "不确定": ["影响程度无法确定"]
+      },
+      "evidence_required_for": ["实质影响"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text", "history", "suffix"],
+      "boundary_examples": [
+        "空格、儿化或唯一可恢复的拼写差异通常是无影响。",
+        "无法恢复的人名、术语、数字、否定、主体或客体变化通常是实质影响。"
+      ]
+    }
+  ],
+  "aggregation": {
+    "semantic_question_ids": ["Q1"],
+    "semantic_change_answer": "内容变化",
+    "impact_question_id": "Q3",
+    "severity_by_impact": {
+      "无影响": "NONE",
+      "轻微影响": "MINOR",
+      "实质影响": "MAJOR",
+      "不确定": "UNDETERMINED"
+    },
+    "rules": [
+      {
+        "id": "U0_不可评分",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "输入或证据不可评分",
+        "when": {"predicate": "item_in", "question_id": "Q0", "values": ["不可评分"]}
+      },
+      {
+        "id": "U1_关键问题不确定",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "关键判断不确定",
+        "when": {
+          "any": [
+            {"predicate": "item_in", "question_id": "Q1", "values": ["不确定"]},
+            {"predicate": "item_in", "question_id": "Q2", "values": ["不确定"]},
+            {"predicate": "item_in", "question_id": "Q3", "values": ["不确定"]}
+          ]
+        }
+      },
+      {
+        "id": "U2_无变化但实质影响",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "Rubric答案内部矛盾",
+        "when": {
+          "all": [
+            {"predicate": "item_in", "question_id": "Q1", "values": ["无内容变化", "仅形式变化"]},
+            {"predicate": "item_in", "question_id": "Q3", "values": ["实质影响"]}
+          ]
+        }
+      },
+      {
+        "id": "U3_完全恢复但实质影响",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "Rubric答案内部矛盾",
+        "when": {
+          "all": [
+            {"predicate": "item_in", "question_id": "Q2", "values": ["完全可恢复"]},
+            {"predicate": "item_in", "question_id": "Q3", "values": ["实质影响"]}
+          ]
+        }
+      },
+      {
+        "id": "R1_实质语义后果",
+        "label": "CONSEQUENTIAL",
+        "when": {
+          "all": [
+            {"predicate": "item_in", "question_id": "Q0", "values": ["可评分"]},
+            {"predicate": "item_in", "question_id": "Q1", "values": ["内容变化"]},
+            {"predicate": "item_in", "question_id": "Q2", "values": ["部分可恢复", "不可恢复"]},
+            {"predicate": "item_in", "question_id": "Q3", "values": ["实质影响"]}
+          ]
+        }
+      },
+      {
+        "id": "R2_无内容变化",
+        "label": "INCONSEQUENTIAL",
+        "when": {"predicate": "item_in", "question_id": "Q1", "values": ["无内容变化", "仅形式变化"]}
+      },
+      {
+        "id": "R3_完全可恢复",
+        "label": "INCONSEQUENTIAL",
+        "when": {"predicate": "item_in", "question_id": "Q2", "values": ["完全可恢复"]}
+      },
+      {
+        "id": "R4_无实质影响",
+        "label": "INCONSEQUENTIAL",
+        "when": {"predicate": "item_in", "question_id": "Q3", "values": ["无影响", "轻微影响"]}
+      },
+      {
+        "id": "U4_无法聚合",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "Rubric答案不完整或无法聚合",
+        "when": {"predicate": "always"}
+      }
+    ]
+  }
+}

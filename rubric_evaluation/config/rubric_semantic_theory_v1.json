@@ -1,0 +1,413 @@
+{
+  "rubric_version": "semantic-theory-v1.0.0",
+  "prompt_version": "semantic-theory-zh-prompt-v1.0.0",
+  "prompt_language": "zh",
+  "title": "理论驱动的 ASR 语义后果 Rubric",
+  "system_prompt": "你是一名 ASR 语义后果评估员。你的任务是按照固定 rubric 分析当前对齐错误改变了什么语义结构、读者能否从 ASR hypothesis 与可见上下文恢复原意，以及是否产生实质理解偏差。你不能决定正式最终标签；程序会根据各题答案执行确定性聚合。\n\n必须遵守：\n1. 只评价当前 reference_span 与 hypothesis_span 对应的错误，不把句中其他错误归入当前 segment。\n2. 按 G1、G2、S1-S4、C1、C2 的顺序独立作答，不得先猜最终标签再反向编造理由。\n3. evidence.quote 必须从指定输入字段逐字复制，不得改写、翻译、纠错、补全或规范化。\n4. 判断 C1 时采用反事实读者视角：读者只能看到 hypothesis_text、hypothesis_span、history 和 suffix。评估者虽然看到 reference，但不得把 reference 独有信息当作读者可用证据。\n5. 语义发生变化不等于一定有实质后果；S1-S4 描述变化机制，C1 和 C2 判断变化能否恢复以及对理解的影响。\n6. 信息不足、reference 有问题、对齐无效或存在无法仲裁的多种解释时，使用不可评分或不确定选项。\n7. 不要输出 final_label，不要在 JSON 之外输出任何文字。",
+  "principles": [
+    "评价对象是当前 ASR 错误是否使合理读者形成与说话者原意不同的实质性理解，而不是字面是否相同。",
+    "S1-S4 是互补而非互斥的语义视角；同一错误可以同时改变多个维度，例如否定删除既改变命题真值，也改变逻辑极性。",
+    "专名拼写、空格或词形不同，如果仍指向同一对象或概念，应判为仅形式差异；不能仅凭字符串不同判为语义改变。",
+    "能够识别话题不等于能够恢复原意；关键实体、数值、条件、角色、立场或结论仍不确定时，最多是部分可恢复。",
+    "C1 只评价 hypothesis 侧证据是否足以恢复 reference 意图，不评价该信息在任务中的重要性。",
+    "C2 评价合理读者最终理解的偏差；语义机制的存在与后果严重程度必须分别判断。",
+    "证据优先引用最短且足够支持答案的原文片段，并保留原始空格、大小写和标点。"
+  ],
+  "theoretical_framework": [
+    {
+      "component": "指称与词义",
+      "used_by": ["S1"],
+      "operationalization": "检查表达式指向的对象、概念、属性和值是否保持。",
+      "research_line": "词汇语义学、指称理论与认知语义学中的概念化"
+    },
+    {
+      "component": "事件与命题框架",
+      "used_by": ["S2"],
+      "operationalization": "检查谓词唤起的事件/状态框架及命题内容是否保持。",
+      "research_line": "框架语义学、事件语义学与命题语义"
+    },
+    {
+      "component": "角色与关系",
+      "used_by": ["S3"],
+      "operationalization": "检查参与者角色、指代、因果、时序和观点归属是否保持。",
+      "research_line": "框架元素、语义角色与关系语义"
+    },
+    {
+      "component": "逻辑与识解",
+      "used_by": ["S4"],
+      "operationalization": "检查否定、模态、量化、范围、时体及观察视角是否改变。",
+      "research_line": "形式语义学与认知语义学中的 construal"
+    },
+    {
+      "component": "语境解释",
+      "used_by": ["C1", "C2"],
+      "operationalization": "以只接触 ASR 文本和允许上下文的读者为主体，判断可恢复性与理解后果。",
+      "research_line": "语用推理、文本蕴含与读者解释"
+    }
+  ],
+  "required_question_ids": ["G1", "G2", "S1", "S2", "S3", "S4", "C1", "C2"],
+  "analysis_tags": [
+    "指称对象",
+    "专名或术语",
+    "属性或数值",
+    "事件或状态",
+    "命题增删",
+    "施事或受事",
+    "指代或观点归属",
+    "因果或时序关系",
+    "否定",
+    "模态或确定性",
+    "条件或量化范围",
+    "时态或体",
+    "视角或焦点",
+    "其他语义机制"
+  ],
+  "questions": [
+    {
+      "id": "G1",
+      "key": "对齐有效性",
+      "dimension": "门控",
+      "question": "reference span 与 hypothesis span 是否位于同一局部 ASR 编辑位置，因而可以进行语义比较？",
+      "evaluation_target": "判断局部位置和边界是否对应，不判断二者含义是否相似。",
+      "allowed_answers": ["有效", "部分有效", "无效", "不可评分"],
+      "definitions": {
+        "有效": "两个 span 对应同一局部编辑位置，边界足以支持比较。含义差异很大仍可属于有效对齐。",
+        "部分有效": "大体对应同一位置，但一侧边界多包含或少包含了邻近成分；核心差异仍可识别。",
+        "无效": "两个 span 来自不相关位置，或边界错误到无法确认当前高亮是否是真实 ASR 编辑。",
+        "不可评分": "现有字段不足以判断对齐是否有效。"
+      },
+      "reason_codes": ["同一局部编辑", "边界有偏差但可比较", "配对位置错误", "边界无法定位", "对齐证据不足"],
+      "reason_codes_by_answer": {
+        "有效": ["同一局部编辑"],
+        "部分有效": ["边界有偏差但可比较"],
+        "无效": ["配对位置错误", "边界无法定位"],
+        "不可评分": ["对齐证据不足"]
+      },
+      "evidence_required_for": ["无效"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text"],
+      "boundary_examples": [
+        "“did not improve→improved”含义相反，但若出现在同一谓词位置，对齐仍是有效。",
+        "两个 span 实际来自句中不同位置时才属于无效。"
+      ]
+    },
+    {
+      "id": "G2",
+      "key": "证据充分性",
+      "dimension": "门控",
+      "question": "reference 意图、hypothesis 表达和可见上下文是否足以可靠判断当前错误的语义后果？",
+      "evaluation_target": "判断证据能否支持后续问题；不因任务困难而自动判为不可评分。",
+      "allowed_answers": ["可评分", "不可评分"],
+      "definitions": {
+        "可评分": "reference 意图基本明确，当前文本和必要上下文足以作出可靠判断。",
+        "不可评分": "reference 本身有明显问题、必要上下文缺失，或存在多种无法仲裁且会导致不同后果标签的解释。"
+      },
+      "reason_codes": ["局部证据充分", "上下文证据充分", "参考文本有问题", "必要上下文缺失", "原意存在实质歧义", "多种解释无法仲裁"],
+      "reason_codes_by_answer": {
+        "可评分": ["局部证据充分", "上下文证据充分"],
+        "不可评分": ["参考文本有问题", "必要上下文缺失", "原意存在实质歧义", "多种解释无法仲裁"]
+      },
+      "evidence_required_for": ["不可评分"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text", "history", "suffix"]
+    },
+    {
+      "id": "S1",
+      "key": "指称与词义",
+      "dimension": "语义结构",
+      "question": "当前错误是否改变了表达式所指的对象、概念、类别、属性、专业术语或具体值？",
+      "evaluation_target": "比较 who/what/value：人、地、组织、产品、术语、类别、属性、数字、日期、单位、版本和数量。",
+      "allowed_answers": ["保持不变", "仅形式差异", "语义改变", "不确定", "不适用"],
+      "definitions": {
+        "保持不变": "适用该维度，且同一对象、概念、属性或值被保留。",
+        "仅形式差异": "拼写、空格、词形或发音转写不同，但普通读者仍能唯一识别同一对象、概念或值。",
+        "语义改变": "对象身份、词义、类别、属性、术语或值被替换、删除、新增，或不再能被唯一识别。",
+        "不确定": "现有证据无法可靠确定两种表达是否指向同一对象、概念或值。",
+        "不适用": "当前错误不涉及可识别的指称对象、词义单位、属性或值。"
+      },
+      "reason_codes": ["指称保持", "概念或属性保持", "同一对象的拼写变体", "空格或词形变体", "指称对象改变", "词义或类别改变", "专业术语改变", "属性改变", "数字或时间改变", "单位或版本改变", "对象无法唯一识别", "指称词义无法确定", "该维度不适用"],
+      "reason_codes_by_answer": {
+        "保持不变": ["指称保持", "概念或属性保持"],
+        "仅形式差异": ["同一对象的拼写变体", "空格或词形变体"],
+        "语义改变": ["指称对象改变", "词义或类别改变", "专业术语改变", "属性改变", "数字或时间改变", "单位或版本改变", "对象无法唯一识别"],
+        "不确定": ["指称词义无法确定"],
+        "不适用": ["该维度不适用"]
+      },
+      "evidence_required_for": ["语义改变"],
+      "allow_empty_evidence_sources": ["reference_span", "hypothesis_span"],
+      "required_evidence_source_groups_by_answer": {
+        "语义改变": [["reference_span", "reference_text"], ["hypothesis_span", "hypothesis_text"]]
+      },
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text"],
+      "boundary_examples": [
+        "专名拼写略有差异但仍只能指向同一人，判为仅形式差异。",
+        "数字 15 被识别成 50，判为语义改变；严重程度留给 C2。"
+      ]
+    },
+    {
+      "id": "S2",
+      "key": "事件与命题框架",
+      "dimension": "语义结构",
+      "question": "当前错误是否改变了谓词唤起的事件、动作、状态、事实或命题内容？",
+      "evaluation_target": "比较 what happened/is true：事件类型、动作、状态、谓词及有效命题信息的新增、删除或替换。",
+      "allowed_answers": ["保持不变", "仅形式差异", "语义改变", "不确定", "不适用"],
+      "definitions": {
+        "保持不变": "事件、状态、谓词和命题内容保持一致。",
+        "仅形式差异": "措辞、语序或流利度变化，但仍表达同一事件或命题。",
+        "语义改变": "事件类型、动作、状态、谓词或有效命题内容被新增、删除或替换。",
+        "不确定": "无法可靠确认两侧是否表达同一事件或命题。",
+        "不适用": "当前错误不承载事件、状态或命题内容。"
+      },
+      "reason_codes": ["事件框架保持", "命题内容保持", "同义表达", "语序或流利度变化", "谓词改变", "事件类型改变", "状态改变", "命题新增", "命题删除", "事实内容替换", "事件命题无法确定", "该维度不适用"],
+      "reason_codes_by_answer": {
+        "保持不变": ["事件框架保持", "命题内容保持"],
+        "仅形式差异": ["同义表达", "语序或流利度变化"],
+        "语义改变": ["谓词改变", "事件类型改变", "状态改变", "命题新增", "命题删除", "事实内容替换"],
+        "不确定": ["事件命题无法确定"],
+        "不适用": ["该维度不适用"]
+      },
+      "evidence_required_for": ["语义改变"],
+      "allow_empty_evidence_sources": ["reference_span", "hypothesis_span"],
+      "required_evidence_source_groups_by_answer": {
+        "语义改变": [["reference_span", "reference_text"], ["hypothesis_span", "hypothesis_text"]]
+      },
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text"],
+      "boundary_examples": [
+        "“declined→increased”改变状态或趋势，判为语义改变。",
+        "只删除不承载命题内容的口语填充词，通常判为不适用或保持不变。"
+      ]
+    },
+    {
+      "id": "S3",
+      "key": "语义角色与关系",
+      "dimension": "语义结构",
+      "question": "当前错误是否改变了事件参与者的角色、指代对象或参与者之间的语义关系？",
+      "evaluation_target": "比较 who did what to whom/whose view/why/when：施事、受事、体验者、归属、指代、因果、时序和观点来源。",
+      "allowed_answers": ["保持不变", "仅形式差异", "语义改变", "不确定", "不适用"],
+      "definitions": {
+        "保持不变": "参与者身份、角色、指代和关系保持一致。",
+        "仅形式差异": "代词形式或句法表达不同，但参与者和关系仍可唯一确定且不变。",
+        "语义改变": "施事、受事、体验者、归属、指代、因果、时序、观点来源或其他关系发生变化。",
+        "不确定": "现有证据无法可靠解析参与者、指代或关系。",
+        "不适用": "当前错误不涉及参与者角色、指代或语义关系。"
+      },
+      "reason_codes": ["参与者角色保持", "关系保持", "可恢复的代词形式", "句法形式变化", "施事改变", "受事或对象改变", "指代对象改变", "归属或观点来源改变", "因果关系改变", "时序关系改变", "其他关系改变", "角色关系无法确定", "该维度不适用"],
+      "reason_codes_by_answer": {
+        "保持不变": ["参与者角色保持", "关系保持"],
+        "仅形式差异": ["可恢复的代词形式", "句法形式变化"],
+        "语义改变": ["施事改变", "受事或对象改变", "指代对象改变", "归属或观点来源改变", "因果关系改变", "时序关系改变", "其他关系改变"],
+        "不确定": ["角色关系无法确定"],
+        "不适用": ["该维度不适用"]
+      },
+      "evidence_required_for": ["语义改变"],
+      "allow_empty_evidence_sources": ["reference_span", "hypothesis_span"],
+      "required_evidence_source_groups_by_answer": {
+        "语义改变": [["reference_span", "reference_text"], ["hypothesis_span", "hypothesis_text"]]
+      },
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text", "history", "suffix"],
+      "boundary_examples": [
+        "“A 批评 B→B 批评 A”改变施事和受事，判为语义改变。",
+        "代词形式不同但上下文仍唯一指向同一对象，可判为仅形式差异。"
+      ]
+    },
+    {
+      "id": "S4",
+      "key": "逻辑力、范围与识解",
+      "dimension": "语义结构",
+      "question": "当前错误是否改变了命题的否定、模态、确定性、条件、量化范围、比较、时体、焦点或观察视角？",
+      "evaluation_target": "比较命题如何成立和如何被组织：polarity、possibility、certainty、scope、condition、comparison、tense/aspect、focus 和 perspective。",
+      "allowed_answers": ["保持不变", "仅形式差异", "语义改变", "不确定", "不适用"],
+      "definitions": {
+        "保持不变": "逻辑极性、模态、范围、条件、时体和识解方式保持一致。",
+        "仅形式差异": "形式发生变化，但不会改变命题的真值条件、承诺强度、范围、时间结构或观察视角。",
+        "语义改变": "否定、模态、确定性、条件、量化、比较、作用域、时态、完成状态、焦点或视角发生变化。",
+        "不确定": "现有证据不足以可靠确定逻辑范围或识解方式是否改变。",
+        "不适用": "当前错误不涉及这些逻辑或识解结构。"
+      },
+      "reason_codes": ["逻辑结构保持", "识解方式保持", "不改变逻辑的形式变体", "否定改变", "模态改变", "确定性改变", "条件改变", "量化或作用域改变", "比较关系改变", "时态或完成状态改变", "焦点或视角改变", "逻辑识解无法确定", "该维度不适用"],
+      "reason_codes_by_answer": {
+        "保持不变": ["逻辑结构保持", "识解方式保持"],
+        "仅形式差异": ["不改变逻辑的形式变体"],
+        "语义改变": ["否定改变", "模态改变", "确定性改变", "条件改变", "量化或作用域改变", "比较关系改变", "时态或完成状态改变", "焦点或视角改变"],
+        "不确定": ["逻辑识解无法确定"],
+        "不适用": ["该维度不适用"]
+      },
+      "evidence_required_for": ["语义改变"],
+      "allow_empty_evidence_sources": ["reference_span", "hypothesis_span"],
+      "required_evidence_source_groups_by_answer": {
+        "语义改变": [["reference_span", "reference_text"], ["hypothesis_span", "hypothesis_text"]]
+      },
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text", "history", "suffix"],
+      "boundary_examples": [
+        "删除否定词通常改变逻辑极性，判为语义改变。",
+        "“可能→已经确认”改变承诺强度，判为语义改变。"
+      ]
+    },
+    {
+      "id": "C1",
+      "key": "上下文可恢复性",
+      "dimension": "语境解释",
+      "question": "只根据 ASR hypothesis 和读者可见的上下文，不使用 reference 独有信息，普通读者能否唯一且可靠地恢复说话者原意？",
+      "evaluation_target": "执行反事实读者测试；评价恢复可能性，不评价被恢复信息的重要性。",
+      "allowed_answers": ["完全可恢复", "部分可恢复", "不可恢复", "不可评分"],
+      "definitions": {
+        "完全可恢复": "hypothesis 和上下文只支持一个合理解释，且该解释与 reference 意图一致；读者无需看到 reference。",
+        "部分可恢复": "能够恢复大致主题或部分内容，但关键对象、事实、值、关系、条件、立场或结论仍不确定。",
+        "不可恢复": "hypothesis 支持错误理解，或支持多个实质不同解释，无法可靠恢复 reference 意图。",
+        "不可评分": "允许使用的上下文本身不足，或原始意图不明确，无法评价恢复程度。"
+      },
+      "reason_codes": ["上下文唯一确定原意", "表面变体仍可唯一识别", "仅能恢复大致主题", "关键细节仍缺失", "错误解释更自然", "存在多个实质解释", "无上下文纠正", "上下文证据不足"],
+      "reason_codes_by_answer": {
+        "完全可恢复": ["上下文唯一确定原意", "表面变体仍可唯一识别"],
+        "部分可恢复": ["仅能恢复大致主题", "关键细节仍缺失"],
+        "不可恢复": ["错误解释更自然", "存在多个实质解释", "无上下文纠正"],
+        "不可评分": ["上下文证据不足"]
+      },
+      "evidence_required_for": ["完全可恢复", "部分可恢复", "不可恢复"],
+      "allowed_evidence_sources": ["hypothesis_span", "hypothesis_text", "history", "suffix"],
+      "boundary_examples": [
+        "拼写不同但上下文只可能指向同一专名，判为完全可恢复。",
+        "知道在讨论某模型但无法确定具体型号，判为部分可恢复。"
+      ]
+    },
+    {
+      "id": "C2",
+      "key": "读者理解后果",
+      "dimension": "语义后果",
+      "question": "合理读者阅读 ASR hypothesis 与可见上下文后，相比说话者原意会产生多大程度的理解偏差？",
+      "evaluation_target": "评价最终解释差异，而不是字面编辑距离、错误显眼程度或声学可混淆性。",
+      "allowed_answers": ["无影响", "轻微影响", "实质影响", "关键影响", "不可评分"],
+      "definitions": {
+        "无影响": "读者最终理解与原意一致；差异仅为形式或已被上下文唯一恢复。",
+        "轻微影响": "局部表达或非关键信息略有偏差，但核心事实、对象身份、术语、值、角色、逻辑条件和立场不变。",
+        "实质影响": "至少一个事实、对象身份、关键术语、值、角色关系、逻辑条件、立场或结论可能被错误理解或无法确定。",
+        "关键影响": "错误反转主要结论、关键否定、核心实体、责任主体、关键数字、安全信息或其他高风险含义。",
+        "不可评分": "当前证据不足以可靠判断理解偏差。"
+      },
+      "reason_codes": ["最终理解一致", "纯形式差异", "非关键信息局部偏差", "事实或事件可能误解", "对象或术语可能误解", "数值或属性可能误解", "角色或关系可能误解", "逻辑条件可能误解", "主要结论反转", "高风险信息改变", "影响程度无法确定"],
+      "reason_codes_by_answer": {
+        "无影响": ["最终理解一致", "纯形式差异"],
+        "轻微影响": ["非关键信息局部偏差"],
+        "实质影响": ["事实或事件可能误解", "对象或术语可能误解", "数值或属性可能误解", "角色或关系可能误解", "逻辑条件可能误解"],
+        "关键影响": ["主要结论反转", "高风险信息改变"],
+        "不可评分": ["影响程度无法确定"]
+      },
+      "evidence_required_for": ["实质影响", "关键影响"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text", "history", "suffix"],
+      "boundary_examples": [
+        "只保留大致话题但关键实体或数值无法恢复，不能判为轻微影响。",
+        "否定删除导致主要结论反转，通常属于关键影响。"
+      ]
+    }
+  ],
+  "aggregation": {
+    "semantic_question_ids": ["S1", "S2", "S3", "S4"],
+    "semantic_change_answer": "语义改变",
+    "alignment_question_id": "G1",
+    "alignment_error_answers": ["无效"],
+    "impact_question_id": "C2",
+    "severity_by_impact": {
+      "无影响": "NONE",
+      "轻微影响": "MINOR",
+      "实质影响": "MAJOR",
+      "关键影响": "CRITICAL",
+      "不可评分": "UNDETERMINED"
+    },
+    "rules": [
+      {
+        "id": "U1_对齐无效",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "ALIGNMENT_INVALID_OR_UNSCORABLE",
+        "when": {"predicate": "item_in", "question_id": "G1", "values": ["无效", "不可评分"]}
+      },
+      {
+        "id": "U2_证据不足",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "INSUFFICIENT_EVIDENCE",
+        "when": {"predicate": "item_in", "question_id": "G2", "values": ["不可评分"]}
+      },
+      {
+        "id": "U3_恢复性不可评分",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "RECOVERABILITY_UNSCORABLE",
+        "when": {"predicate": "item_in", "question_id": "C1", "values": ["不可评分"]}
+      },
+      {
+        "id": "U4_后果不可评分",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "READER_IMPACT_UNSCORABLE",
+        "when": {"predicate": "item_in", "question_id": "C2", "values": ["不可评分"]}
+      },
+      {
+        "id": "U5_语义变化无法确定",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "UNRESOLVED_SEMANTIC_UNCERTAINTY",
+        "when": {
+          "all": [
+            {"not": {"predicate": "semantic_any", "values": ["语义改变"]}},
+            {"predicate": "semantic_any", "values": ["不确定"]}
+          ]
+        }
+      },
+      {
+        "id": "U6_无语义变化但有实质后果",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "INCONSISTENT_RUBRIC_TRACE",
+        "when": {
+          "all": [
+            {"predicate": "semantic_all", "values": ["保持不变", "仅形式差异", "不适用"]},
+            {"predicate": "item_in", "question_id": "C2", "values": ["实质影响", "关键影响"]}
+          ]
+        }
+      },
+      {
+        "id": "U7_完全恢复但有实质后果",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "INCONSISTENT_RUBRIC_TRACE",
+        "when": {
+          "all": [
+            {"predicate": "item_in", "question_id": "C1", "values": ["完全可恢复"]},
+            {"predicate": "item_in", "question_id": "C2", "values": ["实质影响", "关键影响"]}
+          ]
+        }
+      },
+      {
+        "id": "R1_实质语义后果",
+        "label": "CONSEQUENTIAL",
+        "when": {
+          "all": [
+            {"predicate": "item_in", "question_id": "G1", "values": ["有效", "部分有效"]},
+            {"predicate": "item_in", "question_id": "G2", "values": ["可评分"]},
+            {"predicate": "semantic_any", "values": ["语义改变"]},
+            {"predicate": "item_in", "question_id": "C1", "values": ["部分可恢复", "不可恢复"]},
+            {"predicate": "item_in", "question_id": "C2", "values": ["实质影响", "关键影响"]}
+          ]
+        }
+      },
+      {
+        "id": "R2_语义结构保持",
+        "label": "INCONSEQUENTIAL",
+        "when": {"predicate": "semantic_all", "values": ["保持不变", "仅形式差异", "不适用"]}
+      },
+      {
+        "id": "R3_无实质理解偏差",
+        "label": "INCONSEQUENTIAL",
+        "when": {"predicate": "item_in", "question_id": "C2", "values": ["无影响", "轻微影响"]}
+      },
+      {
+        "id": "R4_上下文完全恢复",
+        "label": "INCONSEQUENTIAL",
+        "when": {
+          "all": [
+            {"predicate": "item_in", "question_id": "C1", "values": ["完全可恢复"]},
+            {"predicate": "item_in", "question_id": "C2", "values": ["无影响", "轻微影响"]}
+          ]
+        }
+      },
+      {
+        "id": "U8_无法一致聚合",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "INCONSISTENT_OR_INCOMPLETE_RUBRIC_TRACE",
+        "when": {"predicate": "always"}
+      }
+    ]
+  }
+}

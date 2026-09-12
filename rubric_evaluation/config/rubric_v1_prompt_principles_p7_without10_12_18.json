@@ -1,0 +1,253 @@
+{
+  "rubric_version": "v1.0.2",
+  "prompt_version": "rubric-prompt-v1.0.5-principles-p7-without10-12-18",
+  "title": "Evidence-Grounded ASR Semantic Consequence Rubric",
+  "principles": [
+    "Reader impact must be consistent with the semantic trace: a changed fact, identity, key term, value, logical condition, or participant relation that is not fully recoverable is MATERIAL, not MINOR.",
+    "Context may explain an expression, but it must not silently repair a different valid word, proper name, organization, technical term, identifier, or parameter. A reader's ability to guess the intended word does not by itself make the ASR wording a harmless form change.",
+    "Keep the granularity of the recoverability and impact judgment aligned with the kind of edit: an entity or key-term error must preserve the same referent or term, while a grammatical or surface edit may be fully recoverable when the complete hypothesis still conveys the same event and core facts. Do not require recovery of the exact reference wording for a non-informative grammatical form.",
+    "A cross-language rendering, conventional spoken-form transcription, or inflectional variant may be a form change when the hypothesis itself uniquely preserves the same word, entity, or value in context. Conversely, if deletion leaves an informative lexical or technical item incomplete and no recognized item remains, context-based guessing is not full recovery.",
+    "Judge the complete hypothesis sentence before assigning a semantic change to a short aligned span. Insertions or deletions that are only discourse fillers, hesitation, laughter, punctuation, spacing, repeated fragments, complementizers, determiners, auxiliaries, or boundary spill are form or alignment effects when the same event, facts, participants, and conclusion remain.",
+    "A lexical difference is not automatically a changed fact: a conventional synonym, paraphrase, inflection, phonetic or orthographic ASR variant, transliteration, abbreviation, or spoken-form rendering is non-material when the hypothesis itself leaves the same referent, predicate, value, and relation uniquely identifiable. Apply this at sentence level, not by comparing isolated strings.",
+    "When repeated words, contractions, or neighboring material make the highlighted spans cross a word boundary or select different occurrences, treat that as a possible PARTIALLY_VALID alignment and use the surrounding sentence to determine whether any informative content was actually added, removed, or replaced. Do not infer a semantic change from the apparent span mismatch alone."
+  ],
+  "questions": [
+    {
+      "id": "G1",
+      "key": "alignment_validity",
+      "dimension": "gating",
+      "question": "Are the spans a plausible local alignment of the same ASR edit location, regardless of whether their meanings differ?",
+      "allowed_answers": ["VALID", "PARTIALLY_VALID", "INVALID", "UNSCORABLE"],
+      "definitions": {
+        "VALID": "The spans occupy the same local edit position and their boundaries support comparison. A substitution may be VALID even when the two spans have very different meanings.",
+        "PARTIALLY_VALID": "The spans broadly correspond, but one boundary includes or omits nearby material.",
+        "INVALID": "The spans were paired from unrelated positions or the boundaries are so wrong that the highlighted local error is not the actual ASR edit. Do not choose INVALID merely because the meanings differ.",
+        "UNSCORABLE": "There is insufficient information to judge alignment validity."
+      },
+      "reason_codes": ["ALIGNED_LOCAL_UNIT", "BOUNDARY_OVERLAP", "MISMATCHED_SPANS", "INSUFFICIENT_ALIGNMENT_EVIDENCE"],
+      "evidence_required_for": ["VALID", "PARTIALLY_VALID", "INVALID"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text"]
+    },
+    {
+      "id": "G2",
+      "key": "evidence_sufficiency",
+      "dimension": "gating",
+      "question": "Are the reference, hypothesis, and available context sufficient to judge the semantic consequence?",
+      "allowed_answers": ["SCORABLE", "UNSCORABLE"],
+      "definitions": {
+        "SCORABLE": "The visible evidence supports a reliable consequence judgment.",
+        "UNSCORABLE": "The reference is defective, required context is absent, or multiple materially different interpretations remain plausible."
+      },
+      "reason_codes": ["SUFFICIENT_LOCAL_EVIDENCE", "SUFFICIENT_CONTEXT", "REFERENCE_PROBLEM", "CONTEXT_MISSING", "AMBIGUOUS_REFERENCE", "MULTIPLE_PLAUSIBLE_INTERPRETATIONS"],
+      "evidence_required_for": [],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text", "history", "suffix"]
+    },
+    {
+      "id": "S1",
+      "key": "proposition_or_event",
+      "dimension": "semantic_change",
+      "question": "Does the error add, remove, or change a fact, event, action, state, predicate, or proposition?",
+      "allowed_answers": ["NO_CHANGE", "MINOR_FORM_CHANGE", "SEMANTIC_CHANGE", "UNCERTAIN", "N_A"],
+      "definitions": {
+        "NO_CHANGE": "The proposition or event is preserved.",
+        "MINOR_FORM_CHANGE": "Wording or fluency changes without changing the proposition. A short grammatical, discourse, or boundary variation belongs here when the surrounding sentence preserves the same event and informative content.",
+        "SEMANTIC_CHANGE": "A fact, event, action, state, predicate, or informative content is added, removed, or replaced. This includes changing a short word only when the complete sentence shows a different event, truth condition, or informative object; do not mark it solely because the token strings differ or because a grammatical form is imperfect. Synonyms, paraphrases, conventional spoken forms, and boundary spill that preserve the same sentence-level event are NO_CHANGE or MINOR_FORM_CHANGE.",
+        "UNCERTAIN": "The evidence does not support a reliable choice.",
+        "N_A": "This dimension does not apply."
+      },
+      "reason_codes": ["PROPOSITION_PRESERVED", "FORM_ONLY", "PREDICATE_CHANGED", "EVENT_ADDED", "EVENT_DELETED", "STATE_CHANGED", "INFORMATION_CHANGED", "UNCERTAIN_EVENT", "NOT_APPLICABLE"],
+      "evidence_required_for": ["SEMANTIC_CHANGE"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text"]
+    },
+    {
+      "id": "S2",
+      "key": "entity_attribute_or_value",
+      "dimension": "semantic_change",
+      "question": "Does the error change an entity, attribute, professional term, number, time, date, unit, version, or quantity?",
+      "allowed_answers": ["NO_CHANGE", "MINOR_FORM_CHANGE", "SEMANTIC_CHANGE", "UNCERTAIN", "N_A"],
+      "definitions": {
+        "NO_CHANGE": "The entity, attribute, term, or value is preserved.",
+        "MINOR_FORM_CHANGE": "A recognized spelling or surface variant differs while the hypothesis and available context still uniquely identify the same entity, professional term, attribute, or value. Do not use this answer merely because the edit is short or resembles the reference. Conventional phonetic renderings, transliterations, abbreviations, and spoken forms count when they uniquely identify the same item.",
+        "SEMANTIC_CHANGE": "The identity, attribute, professional term, parameter, or value is materially changed or no longer uniquely identifiable. A different valid word or an altered proper name or technical term is semantic when the hypothesis does not itself preserve the same referent; this criterion applies when the span actually carries that entity, term, or value information, not to ordinary grammatical forms, synonyms, paraphrases, or recognized ASR renderings that preserve the same item.",
+        "UNCERTAIN": "The evidence does not support a reliable choice.",
+        "N_A": "This dimension does not apply."
+      },
+      "reason_codes": ["ENTITY_PRESERVED", "SPELLING_VARIANT", "ENTITY_CHANGED", "ENTITY_UNIDENTIFIABLE", "ATTRIBUTE_CHANGED", "TERM_CHANGED", "NUMBER_CHANGED", "TIME_CHANGED", "UNIT_CHANGED", "VERSION_CHANGED", "UNCERTAIN_ENTITY", "NOT_APPLICABLE"],
+      "evidence_required_for": ["SEMANTIC_CHANGE"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text"]
+    },
+    {
+      "id": "S3",
+      "key": "logical_force_or_scope",
+      "dimension": "semantic_change",
+      "question": "Does the error change negation, modality, certainty, condition, comparison, quantifier scope, tense, or completion status?",
+      "allowed_answers": ["NO_CHANGE", "MINOR_FORM_CHANGE", "SEMANTIC_CHANGE", "UNCERTAIN", "N_A"],
+      "definitions": {
+        "NO_CHANGE": "Logical force and scope are preserved.",
+        "MINOR_FORM_CHANGE": "A surface form changes without changing logical force or scope.",
+        "SEMANTIC_CHANGE": "Negation, modality, certainty, condition, comparison, quantity scope, tense, or completion status changes in the complete sentence. Do not mark a change for a contraction, auxiliary, or boundary variant unless the resulting sentence clearly changes truth conditions or event status.",
+        "UNCERTAIN": "The evidence does not support a reliable choice.",
+        "N_A": "This dimension does not apply."
+      },
+      "reason_codes": ["LOGIC_PRESERVED", "FORM_ONLY", "NEGATION_CHANGED", "MODALITY_CHANGED", "CERTAINTY_CHANGED", "CONDITION_CHANGED", "COMPARISON_CHANGED", "QUANTIFIER_SCOPE_CHANGED", "TENSE_CHANGED", "COMPLETION_CHANGED", "UNCERTAIN_LOGIC", "NOT_APPLICABLE"],
+      "evidence_required_for": ["SEMANTIC_CHANGE"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text"]
+    },
+    {
+      "id": "S4",
+      "key": "semantic_role_or_relation",
+      "dimension": "semantic_change",
+      "question": "Does the error change participant roles, subject/object, reference, causality, temporal relation, viewpoint attribution, or another semantic relation?",
+      "allowed_answers": ["NO_CHANGE", "MINOR_FORM_CHANGE", "SEMANTIC_CHANGE", "UNCERTAIN", "N_A"],
+      "definitions": {
+        "NO_CHANGE": "Roles and semantic relations are preserved.",
+        "MINOR_FORM_CHANGE": "The wording changes without changing participants or relations. Do not infer a changed role or referent from an isolated short word, agreement form, filler, or boundary artifact when the sentence context preserves the same relation.",
+        "SEMANTIC_CHANGE": "A participant, role, referent, cause, temporal relation, or viewpoint attribution changes. Mark this only when the complete sentence supports an actual relation change, not merely because a short token was substituted or deleted, a pronoun is colloquial, or the alignment crosses a boundary.",
+        "UNCERTAIN": "The evidence does not support a reliable choice.",
+        "N_A": "This dimension does not apply."
+      },
+      "reason_codes": ["RELATION_PRESERVED", "FORM_ONLY", "AGENT_CHANGED", "PATIENT_CHANGED", "REFERENCE_CHANGED", "CAUSE_EFFECT_CHANGED", "TEMPORAL_RELATION_CHANGED", "VIEWPOINT_ATTRIBUTION_CHANGED", "OTHER_RELATION_CHANGED", "UNCERTAIN_RELATION", "NOT_APPLICABLE"],
+      "evidence_required_for": ["SEMANTIC_CHANGE"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text", "history", "suffix"]
+    },
+    {
+      "id": "C1",
+      "key": "contextual_recoverability",
+      "dimension": "context",
+      "question": "Using only the ASR hypothesis and available reader context, can a reasonable reader uniquely and reliably recover the original meaning?",
+      "allowed_answers": ["FULLY_RECOVERABLE", "PARTIALLY_RECOVERABLE", "NOT_RECOVERABLE", "UNSCORABLE"],
+      "definitions": {
+        "FULLY_RECOVERABLE": "Only one reasonable interpretation is supported and it matches the intended meaning. For an entity, key term, value, or relation change, the hypothesis itself must preserve the same identifiable information; for a grammatical or surface change, the complete hypothesis may be fully recoverable when it unambiguously conveys the same event and core facts. A judge's ability to silently correct a different informative word is not enough.",
+        "PARTIALLY_RECOVERABLE": "The broad topic is recoverable, but a key entity, key term, value, relation, condition, or stance remains uncertain. Use this when context suggests the intended meaning but the hypothesis does not uniquely preserve the informative detail.",
+        "NOT_RECOVERABLE": "The visible hypothesis evidence supports a wrong interpretation or multiple materially different interpretations. A different valid word, proper name, organization, technical term, identifier, or parameter that is not uniquely resolved counts as unrecovered even when the intended form is easy to guess.",
+        "UNSCORABLE": "The context or intended meaning is too incomplete to assess recoverability."
+      },
+      "boundary_examples": [
+        "A function word, filler, repeated fragment, or boundary truncation is not a proposition change merely because the local strings differ; require evidence that the sentence-level event or fact changed.",
+        "A changed informative object or parameter name can change the proposition even when the surrounding grammatical frame is unchanged.",
+        "A spelling difference that is a recognized variant and still uniquely identifies the same named entity is FULLY_RECOVERABLE.",
+        "A one- or two-character edit is not automatically a spelling variant: if it creates another valid word or leaves a proper name, organization, technical term, identifier, or parameter uncertain, do not mark FULLY_RECOVERABLE.",
+        "A conventional spoken-form or transliterated rendering may be FULLY_RECOVERABLE when a reasonable reader uniquely identifies the same item from the hypothesis itself; do not demand the exact reference spelling.",
+        "If the highlighted span is a boundary fragment, repeated-word selection, or adjacent non-lexical material, assess the complete hypothesis sentence and do not treat the neighboring spill as an unrecovered key detail.",
+        "Recovering only the topic while a key term, identity, value, or referent remains uncertain is PARTIALLY_RECOVERABLE."
+      ],
+      "reason_codes": ["UNIQUE_CONTEXTUAL_RECOVERY", "SURFACE_VARIANT_RECOVERED", "PARTIAL_MEANING_ONLY", "KEY_DETAIL_UNRECOVERED", "WRONG_INTERPRETATION_SUPPORTED", "MULTIPLE_INTERPRETATIONS", "NO_CONTEXTUAL_CORRECTION", "INSUFFICIENT_CONTEXT"],
+      "evidence_required_for": ["FULLY_RECOVERABLE", "PARTIALLY_RECOVERABLE", "NOT_RECOVERABLE"],
+      "allowed_evidence_sources": ["hypothesis_span", "hypothesis_text", "history", "suffix"]
+    },
+    {
+      "id": "C2",
+      "key": "reader_interpretation_impact",
+      "dimension": "impact",
+      "question": "How much would a reasonable reader's interpretation of the ASR hypothesis differ from the speaker's intended meaning?",
+      "allowed_answers": ["NONE", "MINOR", "MATERIAL", "CRITICAL", "UNSCORABLE"],
+      "definitions": {
+        "NONE": "There is no different understanding; the difference is formal or fully recoverable under the strict C1 test.",
+        "MINOR": "There is a slight local deviation, but a reader still obtains the same core facts, event, entity identity, key terms, values, participant relations, logical conditions, and stance. A grammatical determiner, auxiliary, degree expression, recoverable omission, inflection, conventional spoken-form rendering, or similar local substitution may be NONE or MINOR when the complete sentence still conveys the same core interpretation. Do not choose MINOR merely because the broad topic remains recognizable, or because the intended wording can be guessed.",
+        "MATERIAL": "At least one core fact, event, entity identity, key term, informative object or parameter, participant relation, logical condition, number, or conclusion can be misunderstood or remains unrecoverable. This includes a changed referent or a corrupted proper name or technical term that is not uniquely identified by the hypothesis. Do not assign MATERIAL solely because one semantic dimension has a local change when the same core interpretation remains unambiguous.",
+        "CRITICAL": "The error reverses a central conclusion, negation, key entity, responsibility, safety fact, or other high-risk meaning.",
+        "UNSCORABLE": "The available evidence cannot support a reliable impact judgment."
+      },
+      "boundary_examples": [
+        "A filler, spacing, inflection, contraction, laughter marker, boundary fragment, or uniquely recoverable spelling or spoken-form variation is NONE or MINOR.",
+        "A synonym, paraphrase, or conventional abbreviation is NONE or MINOR when it preserves the same sentence-level interpretation, even if the aligned strings are different.",
+        "A changed name, technical term, number, negation, role, or referent that is not fully recoverable is MATERIAL.",
+        "A local change in a determiner, auxiliary, degree expression, or recoverable omission is NONE or MINOR when it does not change the reader's core event, fact, entity, value, relation, logical force, or conclusion.",
+        "If S1-S4 contains SEMANTIC_CHANGE and C1 is PARTIALLY_RECOVERABLE or NOT_RECOVERABLE, choose MINOR only when the changed information is genuinely incidental to reader understanding."
+      ],
+      "reason_codes": ["NO_INTERPRETATION_CHANGE", "FORM_ONLY", "MINOR_LOCAL_DEVIATION", "FACT_MISUNDERSTOOD", "ENTITY_MISUNDERSTOOD", "VALUE_MISUNDERSTOOD", "LOGIC_MISUNDERSTOOD", "RELATION_MISUNDERSTOOD", "MAIN_MEANING_REVERSED", "HIGH_RISK_INFORMATION_CHANGED", "INSUFFICIENT_EVIDENCE"],
+      "evidence_required_for": ["MATERIAL", "CRITICAL"],
+      "allowed_evidence_sources": ["reference_span", "hypothesis_span", "reference_text", "hypothesis_text", "history", "suffix"]
+    }
+  ],
+  "aggregation": {
+    "semantic_question_ids": ["S1", "S2", "S3", "S4"],
+    "rules": [
+      {
+        "id": "U_ALIGNMENT",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "ALIGNMENT_INVALID_OR_UNSCORABLE",
+        "when": {"predicate": "item_in", "question_id": "G1", "values": ["INVALID", "UNSCORABLE"]}
+      },
+      {
+        "id": "U_EVIDENCE",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "INSUFFICIENT_EVIDENCE",
+        "when": {"predicate": "item_in", "question_id": "G2", "values": ["UNSCORABLE"]}
+      },
+      {
+        "id": "U_CONTEXT",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "CONTEXT_RECOVERABILITY_UNSCORABLE",
+        "when": {"predicate": "item_in", "question_id": "C1", "values": ["UNSCORABLE"]}
+      },
+      {
+        "id": "U_IMPACT",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "READER_IMPACT_UNSCORABLE",
+        "when": {"predicate": "item_in", "question_id": "C2", "values": ["UNSCORABLE"]}
+      },
+      {
+        "id": "U_SEMANTIC_UNCERTAIN",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "UNRESOLVED_SEMANTIC_UNCERTAINTY",
+        "when": {
+          "all": [
+            {"not": {"predicate": "semantic_any", "values": ["SEMANTIC_CHANGE"]}},
+            {"predicate": "semantic_any", "values": ["UNCERTAIN"]}
+          ]
+        }
+      },
+      {
+        "id": "U_INCONSISTENT_NO_CHANGE_MATERIAL",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "INCONSISTENT_RUBRIC_TRACE",
+        "when": {
+          "all": [
+            {"predicate": "semantic_all", "values": ["NO_CHANGE", "MINOR_FORM_CHANGE", "N_A"]},
+            {"predicate": "item_in", "question_id": "C2", "values": ["MATERIAL", "CRITICAL"]}
+          ]
+        }
+      },
+      {
+        "id": "R1_CONSEQUENTIAL",
+        "label": "CONSEQUENTIAL",
+        "when": {
+          "all": [
+            {"predicate": "item_not_in", "question_id": "G1", "values": ["INVALID", "UNSCORABLE"]},
+            {"predicate": "item_in", "question_id": "G2", "values": ["SCORABLE"]},
+            {"predicate": "semantic_any", "values": ["SEMANTIC_CHANGE"]},
+            {"predicate": "item_in", "question_id": "C1", "values": ["PARTIALLY_RECOVERABLE", "NOT_RECOVERABLE"]},
+            {"predicate": "item_in", "question_id": "C2", "values": ["MATERIAL", "CRITICAL"]}
+          ]
+        }
+      },
+      {
+        "id": "R2_NO_SEMANTIC_CHANGE",
+        "label": "INCONSEQUENTIAL",
+        "when": {"predicate": "semantic_all", "values": ["NO_CHANGE", "MINOR_FORM_CHANGE", "N_A"]}
+      },
+      {
+        "id": "R3_LOW_READER_IMPACT",
+        "label": "INCONSEQUENTIAL",
+        "when": {"predicate": "item_in", "question_id": "C2", "values": ["NONE", "MINOR"]}
+      },
+      {
+        "id": "R4_FULLY_RECOVERABLE",
+        "label": "INCONSEQUENTIAL",
+        "when": {
+          "all": [
+            {"predicate": "item_in", "question_id": "C1", "values": ["FULLY_RECOVERABLE"]},
+            {"predicate": "item_not_in", "question_id": "C2", "values": ["MATERIAL", "CRITICAL", "UNSCORABLE"]}
+          ]
+        }
+      },
+      {
+        "id": "U_FALLBACK",
+        "label": "UNSCORABLE",
+        "unscorable_reason": "INCONSISTENT_OR_INCOMPLETE_RUBRIC_TRACE",
+        "when": {"predicate": "always"}
+      }
+    ]
+  }
+}
