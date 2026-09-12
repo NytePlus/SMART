@@ -51,49 +51,25 @@ flowchart LR
 
 ## Docker 环境
 
-镜像默认使用 Python 3.13，并依据实验虚拟环境锁定核心依赖版本：`openai==2.51.0`、`jieba==0.42.1`、`pydantic==2.13.4`。`PYTHON_BASE_IMAGE` 构建参数可在离线或受限环境中切换到预先缓存的兼容 Python 镜像。
+镜像默认使用 Python 3.13，核心依赖版本为 `openai==2.51.0`、`jieba==0.42.1`、`pydantic==2.13.4`。
 
-构建并运行离线测试：
-
-```bash
-docker compose build
-docker compose run --rm test
-```
-
-如果服务器无法访问 Docker Hub、但已经缓存了兼容基础镜像，可仅在该服务器构建时覆盖镜像，例如：
+构建镜像并运行离线测试：
 
 ```bash
-PYTHON_BASE_IMAGE=python:3.11-slim-bookworm docker compose build
+docker build -t smart-pipeline .
+docker run --rm --entrypoint python smart-pipeline \
+  -m unittest discover -s tests -v
 ```
-
-这不会改变仓库默认的 Python 3.13 配置；正式发布仍以 Python 3.13 为基准。
-
-Linux 共享服务器建议把容器用户映射到当前账号，避免挂载目录中的结果文件归属于其他用户：
-
-```bash
-PIPELINE_UID="$(id -u)" PIPELINE_GID="$(id -g)" docker compose up \
-  --abort-on-container-exit --exit-code-from test test
-```
-
-普通 Docker 环境仍可直接使用前面的 `docker compose run` 命令。某些集群会改写 `docker run` 参数，此时使用上面的 `docker compose up` 形式。
 
 运行不需要外部 API 的 Segment Mapping：
 
 ```bash
-docker compose run --rm segment-mapping
-```
-
-Rubric、完整评估和 Post Correction 需要 API。将密钥写入本地 `.env`，该文件不会进入镜像或 Git：
-
-```text
-LLM_API_KEY=your-key
-```
-
-然后按需运行：
-
-```bash
-docker compose --profile api run --rm evaluation
-docker compose --profile api run --rm post-correction
+docker run --rm \
+  -v "$PWD/examples:/app/examples:ro" \
+  -v "$PWD/runs:/app/runs" \
+  smart-pipeline run_segment_mapping.py \
+  --input examples/evaluation_input.jsonl \
+  --output runs/segment_mapping.jsonl
 ```
 
 ## 1. Segment Mapping
