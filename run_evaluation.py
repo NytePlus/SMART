@@ -17,7 +17,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
-    parser.add_argument("--rubric", type=Path, default=ROOT / "rubric_evaluation/config/rubric_minimal_v1.json")
+    parser.add_argument("--rubric", type=Path, default=ROOT / "rubric_evaluation/config/rubric_v1.json")
     parser.add_argument("--model", default="deepseek-v4-pro")
     parser.add_argument("--base-url", default="https://apifusion.aispeech.com.cn/v1")
     parser.add_argument("--workers", type=int, default=1)

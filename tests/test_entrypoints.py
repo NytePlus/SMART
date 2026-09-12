@@ -13,6 +13,12 @@ from run_segment_mapping import map_record
 
 
 class EntrypointTests(unittest.TestCase):
+    def test_distribution_keeps_one_prompt_and_one_rubric(self) -> None:
+        prompts = sorted(path.name for path in (ROOT / "post_correction/prompts").glob("*.json"))
+        rubrics = sorted(path.name for path in (ROOT / "rubric_evaluation/config").glob("*.json"))
+        self.assertEqual(prompts, ["v1_1.json"])
+        self.assertEqual(rubrics, ["rubric_v1.json"])
+
     def test_segment_mapping_schema(self) -> None:
         result = map_record({
             "id": "sample-1",

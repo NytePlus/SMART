@@ -36,6 +36,8 @@ flowchart LR
         P --> C2[corrected hypothesis]
     end
 
+    Evaluation ~~~ Correction
+
     classDef plainText fill:transparent,stroke:transparent,stroke-width:0px
     class E1,C1,E2,C2 plainText
 
@@ -137,7 +139,7 @@ Rubric 会使用 reference、hypothesis、当前错误 segment，以及可选的
 ```bash
 python run_rubric_sier.py \
   --input runs/example/segment_mapping.jsonl \
-  --rubric rubric_evaluation/config/rubric_minimal_v1.json \
+  --rubric rubric_evaluation/config/rubric_v1.json \
   --segment-output runs/example/rubric_results.jsonl \
   --metric-output runs/example/sier_metrics.json \
   --workers 4
@@ -245,7 +247,7 @@ python run_post_correction.py \
 python run_evaluation.py \
   --input examples/evaluation_input.jsonl \
   --output-dir runs/example/evaluation \
-  --rubric rubric_evaluation/config/rubric_minimal_v1.json \
+  --rubric rubric_evaluation/config/rubric_v1.json \
   --workers 4
 ```
 

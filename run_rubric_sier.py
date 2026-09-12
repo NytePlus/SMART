@@ -54,7 +54,7 @@ def rubric_inputs(mapped_rows: list[dict]) -> list[dict]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path)
-    parser.add_argument("--rubric", type=Path, default=ROOT / "rubric_evaluation/config/rubric_minimal_v1.json")
+    parser.add_argument("--rubric", type=Path, default=ROOT / "rubric_evaluation/config/rubric_v1.json")
     parser.add_argument("--segment-output", required=True, type=Path)
     parser.add_argument("--metric-output", required=True, type=Path)
     parser.add_argument("--model", default=os.environ.get("LLM_MODEL", "deepseek-v4-pro"))

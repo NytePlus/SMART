@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument(
         "--rubric",
         type=Path,
-        default=ROOT / "config" / "rubric_minimal_v1.json",
+        default=ROOT / "config" / "rubric_v1.json",
     )
     parser.add_argument("--env-file", type=Path, default=ROOT.parent / ".env")
     parser.add_argument("--model", default=None)

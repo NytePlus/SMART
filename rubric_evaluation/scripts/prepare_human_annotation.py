@@ -61,7 +61,7 @@ def main() -> None:
     parser.add_argument(
         "--rubric",
         type=Path,
-        default=ROOT / "config" / "rubric_minimal_v1.json",
+        default=ROOT / "config" / "rubric_v1.json",
     )
     args = parser.parse_args()
 
