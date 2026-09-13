@@ -31,19 +31,19 @@ smart-pipeline/
 ```mermaid
 flowchart LR
     subgraph Evaluation[评估流水线]
-        E1[reference + hypothesis] --> M[Segment Mapping]
-        M --> E2[对齐后的 (r_k, h_k) + c_k]
-        E2 --> R[Reference-aware evaluation rubric<br/>Reference-aware contextual semantic consequence judgment]
-        R --> G[结构化判断 (G_k, S_k, C_k)]
-        G --> A[确定性聚合]
-        A --> E3[consequential / inconsequential]
+        E1["reference + hypothesis"] --> M["Segment Mapping"]
+        M --> E2["对齐后的 (r_k, h_k) + c_k"]
+        E2 --> R["Reference-aware evaluation rubric<br/>Reference-aware contextual semantic consequence judgment"]
+        R --> G["结构化判断 (G_k, S_k, C_k)"]
+        G --> A["确定性聚合"]
+        A --> E3["consequential / inconsequential"]
     end
 
     subgraph Correction[后修正流水线]
-        C1[(h, c)] --> D[Detector<br/>Target-reference-free rubric]
-        D --> DR[repair-oriented guidance 𝒟^rep]
-        DR --> C[Corrector LLM<br/>Target-reference-free rubric-guided correction]
-        C --> C2[修正后的 hypothesis h̃]
+        C1["(h, c)"] --> D["Detector<br/>Target-reference-free rubric"]
+        D --> DR["repair-oriented guidance 𝒟^rep"]
+        DR --> C["Corrector LLM<br/>Target-reference-free rubric-guided correction"]
+        C --> C2["修正后的 hypothesis h̃"]
     end
 
     Evaluation ~~~ Correction
