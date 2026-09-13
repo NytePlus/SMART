@@ -36,16 +36,16 @@ flowchart LR
     subgraph Evaluation[Evaluation pipeline]
         E1["reference + hypothesis"] --> M["Segment Mapping"]
         M --> E2["aligned (r_k, h_k) + c_k"]
-        E2 --> R["Reference-aware evaluation rubric<br/>Reference-aware contextual semantic consequence judgment"]
+        E2 --> R["Reference-aware evaluation rubric"]
         R --> G["structured judgment (G_k, S_k, C_k)"]
         G --> A["Deterministic aggregation"]
         A --> E3["consequential / inconsequential"]
     end
 
     subgraph Correction[Post-correction pipeline]
-        C1["(h, c)"] --> D["Detector<br/>Target-reference-free rubric"]
+        C1["(h, c)"] --> D["Target-reference-free rubric"]
         D --> DR["repair-oriented guidance 𝒟^rep"]
-        DR --> C["Corrector LLM<br/>Target-reference-free rubric-guided correction"]
+        DR --> C["Corrector LLM"]
         C --> C2["corrected hypothesis h̃"]
     end
 
