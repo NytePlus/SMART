@@ -1,0 +1,9 @@
+.git
+.env
+.cache
+.jieba_cache
+__pycache__
+*.py[cod]
+runs
+outputs
+*.manifest.json

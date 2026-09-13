@@ -21,6 +21,9 @@ smart-pipeline/
 ├── run_rubric_sier.py                # 流水线 2b：rubric 推理和 SIER
 ├── run_evaluation.py                 # 流水线 2：完整评估
 ├── requirements.txt                  # 运行依赖
+├── Dockerfile                         # 可复现的容器镜像配置
+├── .dockerignore                      # Docker 构建上下文排除项
+├── docker/jieba-cache/.gitkeep        # 可写缓存目录占位
 ├── README.md
 └── README.zh.md
 ```
@@ -52,14 +55,39 @@ python -m pip install -r requirements.txt
 Rubric 和后修正调用 OpenAI 兼容 API。通过环境变量设置 `LLM_API_KEY`（或
 `OPENAI_API_KEY`）；密钥不会从 JSONL 输入读取，也不会写入结果文件。
 
+## Docker 环境
+
+仓库保留了基于 Python 3.13 的 Docker 配置。构建镜像并运行不依赖 API 的入口检查：
+
+```bash
+docker build -t smart-pipeline .
+docker run --rm smart-pipeline run_segment_mapping.py --help
+```
+
+如果需要使用离线或本地缓存的 Python 基础镜像，可以覆盖
+`PYTHON_BASE_IMAGE`：
+
+```bash
+docker build \
+  --build-arg PYTHON_BASE_IMAGE=python:3.11-slim-bookworm \
+  -t smart-pipeline .
+```
+
+运行流水线时挂载输入和输出目录。需要 API 的命令还要通过 `--env` 传入
+`LLM_API_KEY` 或 `OPENAI_API_KEY`。
+
 ## 四个入口
 
 ### 1. Segment mapping
 
-输入是 UTF-8 JSONL，每行一个对象：
+输入是 UTF-8 JSONL，每行一个对象。稳定输入 schema 为：
 
 ```json
-{"id": "sample-001", "reference": "参考文本", "hypothesis": "ASR 输出"}
+{
+  "id": "sample-001",
+  "reference": "参考转写文本",
+  "hypothesis": "ASR 识别文本"
+}
 ```
 
 运行确定性的对齐阶段：
@@ -70,8 +98,34 @@ python run_segment_mapping.py \
   --output path/to/segment_mapping.jsonl
 ```
 
-每条输出保留原文本、完整对齐数组，以及包含替换、插入和删除的
-`error_segments`。
+稳定输出 schema 为：
+
+```json
+{
+  "id": "sample-001",
+  "reference": "参考转写文本",
+  "hypothesis": "ASR 识别文本",
+  "mapping": {
+    "mapped_reference": ["参考", "转写", "文本"],
+    "mapped_hypothesis": ["参考", "撰写", "文本"],
+    "mapped_ops": ["==", "SS", "=="],
+    "mer": 0.333333,
+    "aligned": "..."
+  },
+  "error_segments": [
+    {
+      "segment_index": 1,
+      "reference_segment": "转写",
+      "hypothesis_segment": "撰写",
+      "op_segment": "SS",
+      "modified_reference": "参考撰写文本"
+    }
+  ]
+}
+```
+
+`mapped_*` 数组描述完整对齐；`error_segments` 只包含发生替换、插入或删除的
+segment。`modified_reference` 是将选定 hypothesis segment 应用到 reference 后的文本。
 
 ### 2. Rubric 评估与 SIER
 
@@ -90,6 +144,55 @@ python run_rubric_sier.py \
 命令只把对齐后的错误 segment 发送给 judge，写出逐 segment 的标准化标签，并计算权威
 的 `s_ser`、`c_ser`、`c_ser2`、`w_ser` 和 `w_mer2` 变体。失败或无效的推理会记录为
 `UNSCORABLE`。
+
+逐 segment 输出 schema 为：
+
+```json
+{
+  "id": "sample-001",
+  "segment_index": 1,
+  "reference_segment": "转写",
+  "hypothesis_segment": "撰写",
+  "op_segment": "SS",
+  "label": "CONSEQUENTIAL",
+  "is_semantic_error": true,
+  "rubric_version": "v1.0.2",
+  "items": {
+    "G1": {
+      "answer": "有效",
+      "reason_code": "...",
+      "confidence": 0.98,
+      "evidence": []
+    }
+  },
+  "change_types": []
+}
+```
+
+`change_types` 仅用于分析，不参与最终 label 的聚合。
+
+SIER 汇总输出 schema 为：
+
+```json
+{
+  "utterances": 100,
+  "total_target_chunks": 1200,
+  "total_target_words": 1850,
+  "error_spans": 140,
+  "semantic_error_spans": 52,
+  "sier": 4.333333,
+  "variants": {
+    "s_ser": 4.333333,
+    "c_ser": 3.916667,
+    "c_ser2": 4.083333,
+    "w_ser": 3.135135,
+    "w_mer2": 3.405405
+  },
+  "unscorable_segments": 2
+}
+```
+
+`sier` 是作为主指标暴露的 `s_ser` 值；所有权威变体都会保留在 `variants` 中。
 
 ### 3. 后修正
 
@@ -117,6 +220,22 @@ python run_post_correction.py \
 使用 `--mode multi` 可启用有上限的多轮修正。每条输出记录原始和修正后的 hypothesis、
 停止原因、各轮 trace 以及见过的状态，便于审计。
 
+输出 schema 为：
+
+```json
+{
+  "id": "sample-001",
+  "status": "ok",
+  "original_hypothesis": "当前句的 ASR 识别文本",
+  "corrected_hypothesis": "修正后的 ASR 文本",
+  "stop_reason": "no_candidates",
+  "rounds": [],
+  "seen_hypotheses": ["当前句的 ASR 识别文本"]
+}
+```
+
+`rounds` 保留每轮的 segments、候选错误、修正建议、验证结果、实际应用编辑与拒绝编辑。
+
 ### 4. 完整评估
 
 `run_evaluation.py` 依次调用 segment mapping、rubric 推理和 SIER 聚合，不调用后修正：
@@ -136,6 +255,22 @@ segment_mapping.jsonl
 rubric_results.jsonl
 sier_metrics.json
 manifest.json
+```
+
+`manifest.json` 记录解析后的输入和 rubric 路径、模型参数以及三个生成文件的路径：
+
+```json
+{
+  "created_at": "2026-01-01T00:00:00+00:00",
+  "input": "/path/to/evaluation_input.jsonl",
+  "rubric": "/path/to/rubric-based/config/rubric_v1.json",
+  "model": "deepseek-v4-pro",
+  "outputs": {
+    "segment_mapping": "/path/to/evaluation_output/segment_mapping.jsonl",
+    "rubric_results": "/path/to/evaluation_output/rubric_results.jsonl",
+    "sier_metrics": "/path/to/evaluation_output/sier_metrics.json"
+  }
+}
 ```
 
 如需比较修正前后的效果，先运行后修正，再用其 `corrected_hypothesis` 构造新的评估

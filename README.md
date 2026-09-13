@@ -24,6 +24,9 @@ smart-pipeline/
 +-- run_rubric_sier.py                # pipeline 2b: rubric inference + SIER
 +-- run_evaluation.py                 # pipeline 2: end-to-end evaluation
 +-- requirements.txt                  # runtime dependencies
++-- Dockerfile                         # reproducible container image
++-- .dockerignore                      # Docker build context exclusions
++-- docker/jieba-cache/.gitkeep        # writable cache mount seed
 +-- README.md
 `-- README.zh.md
 ```
@@ -56,14 +59,40 @@ The rubric and post-correction calls use an OpenAI-compatible API. Set
 `LLM_API_KEY` (or `OPENAI_API_KEY`) in the environment; keys are never read
 from JSONL input or written to result files.
 
+## Docker
+
+The repository includes a Python 3.13 Docker configuration. Build the image
+and run the dependency-free command-line checks with:
+
+```bash
+docker build -t smart-pipeline .
+docker run --rm smart-pipeline run_segment_mapping.py --help
+```
+
+`PYTHON_BASE_IMAGE` can be overridden when an offline or locally cached Python
+image is required:
+
+```bash
+docker build \
+  --build-arg PYTHON_BASE_IMAGE=python:3.11-slim-bookworm \
+  -t smart-pipeline .
+```
+
+Mount input and output directories when running a pipeline. API-backed
+commands also need `LLM_API_KEY` or `OPENAI_API_KEY` passed with `--env`.
+
 ## Entry Points
 
 ### 1. Segment mapping
 
-Input is UTF-8 JSONL with one object per line:
+Input is UTF-8 JSONL with one object per line. The stable input schema is:
 
 ```json
-{"id": "sample-001", "reference": "ground truth", "hypothesis": "ASR output"}
+{
+  "id": "sample-001",
+  "reference": "ground truth transcript",
+  "hypothesis": "ASR transcript"
+}
 ```
 
 Run the deterministic alignment stage:
@@ -74,8 +103,35 @@ python run_segment_mapping.py \
   --output path/to/segment_mapping.jsonl
 ```
 
-Each output row keeps the original texts, complete alignment arrays, and an
-`error_segments` list for substitutions, insertions, and deletions.
+The stable output schema is:
+
+```json
+{
+  "id": "sample-001",
+  "reference": "ground truth transcript",
+  "hypothesis": "ASR transcript",
+  "mapping": {
+    "mapped_reference": ["ground", "truth", "transcript"],
+    "mapped_hypothesis": ["ground", "truce", "transcript"],
+    "mapped_ops": ["==", "SS", "=="],
+    "mer": 0.333333,
+    "aligned": "..."
+  },
+  "error_segments": [
+    {
+      "segment_index": 1,
+      "reference_segment": "truth",
+      "hypothesis_segment": "truce",
+      "op_segment": "SS",
+      "modified_reference": "ground truce transcript"
+    }
+  ]
+}
+```
+
+`mapped_*` arrays describe the complete alignment. `error_segments` contains
+only substitution, insertion, and deletion segments. `modified_reference` is
+the reference text with the selected hypothesis segment applied.
 
 ### 2. Rubric evaluation and SIER
 
@@ -97,6 +153,57 @@ The command sends only mapped error segments to the judge, writes normalized
 per-segment labels, and calculates the authoritative `s_ser`, `c_ser`,
 `c_ser2`, `w_ser`, and `w_mer2` variants. Failed or invalid inferences are
 reported as `UNSCORABLE`.
+
+The normalized per-segment output schema is:
+
+```json
+{
+  "id": "sample-001",
+  "segment_index": 1,
+  "reference_segment": "truth",
+  "hypothesis_segment": "truce",
+  "op_segment": "SS",
+  "label": "CONSEQUENTIAL",
+  "is_semantic_error": true,
+  "rubric_version": "v1.0.2",
+  "items": {
+    "G1": {
+      "answer": "valid",
+      "reason_code": "...",
+      "confidence": 0.98,
+      "evidence": []
+    }
+  },
+  "change_types": []
+}
+```
+
+`change_types` is retained for analysis and does not participate in the final
+label aggregation.
+
+The metric output schema is:
+
+```json
+{
+  "utterances": 100,
+  "total_target_chunks": 1200,
+  "total_target_words": 1850,
+  "error_spans": 140,
+  "semantic_error_spans": 52,
+  "sier": 4.333333,
+  "variants": {
+    "s_ser": 4.333333,
+    "c_ser": 3.916667,
+    "c_ser2": 4.083333,
+    "w_ser": 3.135135,
+    "w_mer2": 3.405405
+  },
+  "unscorable_segments": 2
+}
+```
+
+`sier` is the `s_ser` value exposed as the primary metric; all authoritative
+variants are retained in `variants`.
 
 ### 3. Post correction
 
@@ -125,6 +232,23 @@ Use `--mode multi` for bounded iterative correction. Every output row records
 the original and corrected hypothesis, stop reason, rounds, and seen states so
 that edits can be audited.
 
+The output schema is:
+
+```json
+{
+  "id": "sample-001",
+  "status": "ok",
+  "original_hypothesis": "current ASR transcript",
+  "corrected_hypothesis": "corrected transcript",
+  "stop_reason": "no_candidates",
+  "rounds": [],
+  "seen_hypotheses": ["current ASR transcript"]
+}
+```
+
+`rounds` contains the segment list, candidate errors, suggestions, verifier
+decisions, applied edits, and rejected edits for each correction round.
+
 ### 4. End-to-end evaluation
 
 `run_evaluation.py` invokes segment mapping followed by rubric inference and
@@ -145,6 +269,23 @@ segment_mapping.jsonl
 rubric_results.jsonl
 sier_metrics.json
 manifest.json
+```
+
+The manifest records the resolved input and rubric paths, model parameters, and
+the paths of the three generated artifacts:
+
+```json
+{
+  "created_at": "2026-01-01T00:00:00+00:00",
+  "input": "/path/to/evaluation_input.jsonl",
+  "rubric": "/path/to/rubric-based/config/rubric_v1.json",
+  "model": "deepseek-v4-pro",
+  "outputs": {
+    "segment_mapping": "/path/to/evaluation_output/segment_mapping.jsonl",
+    "rubric_results": "/path/to/evaluation_output/rubric_results.jsonl",
+    "sier_metrics": "/path/to/evaluation_output/sier_metrics.json"
+  }
+}
 ```
 
 To compare correction before and after, run post correction first, construct a
