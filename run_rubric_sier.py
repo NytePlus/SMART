@@ -10,12 +10,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT / "rubric_evaluation"))
+sys.path.insert(0, str(ROOT / "rubric-based"))
 sys.path.insert(0, str(ROOT / "sier_metrics"))
-
-from rubric_eval.config import load_rubric  # noqa: E402
-from rubric_eval.llm_runner import run_inference  # noqa: E402
-from _ser_metrics import compute_ser_variants  # noqa: E402
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -54,7 +50,7 @@ def rubric_inputs(mapped_rows: list[dict]) -> list[dict]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path)
-    parser.add_argument("--rubric", type=Path, default=ROOT / "rubric_evaluation/config/rubric_v1.json")
+    parser.add_argument("--rubric", type=Path, default=ROOT / "rubric-based/config/rubric_v1.json")
     parser.add_argument("--segment-output", required=True, type=Path)
     parser.add_argument("--metric-output", required=True, type=Path)
     parser.add_argument("--model", default=os.environ.get("LLM_MODEL", "deepseek-v4-pro"))
@@ -62,6 +58,10 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--max-attempts", type=int, default=2)
     args = parser.parse_args()
+
+    from rubric_eval.config import load_rubric
+    from rubric_eval.llm_runner import run_inference
+    from _ser_metrics import compute_ser_variants
 
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not api_key:

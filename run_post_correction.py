@@ -12,10 +12,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "post_correction"))
 
-from asr_post_correction.client import CachedJsonClient  # noqa: E402
-from asr_post_correction.core import CorrectionEngine  # noqa: E402
-from asr_post_correction.prompts import load_prompt_bundle  # noqa: E402
-
 
 def read_jsonl(path: Path) -> list[dict]:
     with path.open(encoding="utf-8") as handle:
@@ -35,6 +31,10 @@ def main() -> int:
     parser.add_argument("--max-attempts", type=int, default=3)
     parser.add_argument("--max-rounds", type=int, default=4)
     args = parser.parse_args()
+
+    from asr_post_correction.client import CachedJsonClient
+    from asr_post_correction.core import CorrectionEngine
+    from asr_post_correction.prompts import load_prompt_bundle
 
     rows = read_jsonl(args.input)
     for index, row in enumerate(rows, 1):
