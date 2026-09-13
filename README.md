@@ -35,20 +35,24 @@ smart-pipeline/
 flowchart LR
     subgraph Evaluation[Evaluation pipeline]
         E1[reference + hypothesis] --> M[Segment Mapping]
-        M -->|mapping JSONL| R[Rubric semantic consequence evaluation]
-        R -->|per-error-segment judgment| S[SIER aggregation]
-        S --> E2[metrics JSON]
+        M --> E2[aligned (r_k, h_k) + c_k]
+        E2 --> R[Reference-aware evaluation rubric<br/>Reference-aware contextual semantic consequence judgment]
+        R --> G[structured judgment (G_k, S_k, C_k)]
+        G --> A[Deterministic aggregation]
+        A --> E3[consequential / inconsequential]
     end
 
     subgraph Correction[Post-correction pipeline]
-        C1[history context + hypothesis] --> P[Post Correction]
-        P --> C2[corrected hypothesis]
+        C1[(h, c)] --> D[Detector<br/>Target-reference-free rubric]
+        D --> DR[repair-oriented guidance 𝒟^rep]
+        DR --> C[Corrector LLM<br/>Target-reference-free rubric-guided correction]
+        C --> C2[corrected hypothesis h̃]
     end
 
     Evaluation ~~~ Correction
 
     classDef plainText fill:transparent,stroke:transparent,stroke-width:0px
-    class E1,C1,E2,C2 plainText
+    class E1,E2,G,E3,C1,DR,C2 plainText
 
     style Evaluation fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
     style Correction fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
