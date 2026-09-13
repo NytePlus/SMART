@@ -30,18 +30,25 @@ smart-pipeline/
 
 ```mermaid
 flowchart LR
-    subgraph Correction[后修正流水线]
-        C1[历史上下文 + hypothesis] --> C2[run_post_correction.py]
-        C2 --> C3[修正后的 hypothesis]
+    subgraph Evaluation[评估流水线]
+        E1[reference + hypothesis] --> M[Segment Mapping]
+        M -->|mapping JSONL| R[Rubric 语义后果评估]
+        R -->|逐错误 segment 的判定| S[SIER 聚合计算]
+        S --> E2[指标 JSON]
     end
 
-    subgraph Evaluation[评估流水线]
-        E1[reference + hypothesis] --> E2[run_segment_mapping.py]
-        E2 --> E3[run_rubric_sier.py]
-        E3 --> E4[SIER 指标]
+    subgraph Correction[后修正流水线]
+        C1[history context + hypothesis] --> P[Post Correction]
+        P --> C2[corrected hypothesis]
     end
 
     Evaluation ~~~ Correction
+
+    classDef plainText fill:transparent,stroke:transparent,stroke-width:0px
+    class E1,C1,E2,C2 plainText
+
+    style Evaluation fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
+    style Correction fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
 ```
 
 ## 安装

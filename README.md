@@ -33,18 +33,25 @@ smart-pipeline/
 
 ```mermaid
 flowchart LR
-    subgraph Correction[Post-correction pipeline]
-        C1[history context + hypothesis] --> C2[run_post_correction.py]
-        C2 --> C3[corrected hypothesis]
+    subgraph Evaluation[Evaluation pipeline]
+        E1[reference + hypothesis] --> M[Segment Mapping]
+        M -->|mapping JSONL| R[Rubric semantic consequence evaluation]
+        R -->|per-error-segment judgment| S[SIER aggregation]
+        S --> E2[metrics JSON]
     end
 
-    subgraph Evaluation[Evaluation pipeline]
-        E1[reference + hypothesis] --> E2[run_segment_mapping.py]
-        E2 --> E3[run_rubric_sier.py]
-        E3 --> E4[SIER metrics]
+    subgraph Correction[Post-correction pipeline]
+        C1[history context + hypothesis] --> P[Post Correction]
+        P --> C2[corrected hypothesis]
     end
 
     Evaluation ~~~ Correction
+
+    classDef plainText fill:transparent,stroke:transparent,stroke-width:0px
+    class E1,C1,E2,C2 plainText
+
+    style Evaluation fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
+    style Correction fill:transparent,stroke:#7f8c8d,stroke-width:1px,stroke-dasharray:6 4,rx:10px,ry:10px
 ```
 
 ## Installation
